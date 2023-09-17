@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Laberinto</title>
+    <style>
+        canvas {
+            border: 2px solid black;
+        }
+
+        #gameOverScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 36px;
+        }
+
+    </style>
+
+    <audio id="collectSound">
+        <source src="music/collectSound.mp3" type="audio/mpeg">
+    </audio>
+    
+    <audio id="backgroundMusic" loop>
+        <source src="music/Backmusic.mp3" type="audio/mpeg">
+    </audio>
+</head>
+<center><body>
+    <canvas id="laberintoCanvas" width="1680" height="880"></canvas>
+    <div id="score">Puntaje: 0</div>
+    <div id="collectedObjects">Objetos recolectados: 0</div>
+    
+    <!-- Game Over -->
+    <div id="gameOverScreen">
+        ¡Has completado el juego!
+    </div>
+    
+    <script>
+        const canvas = document.getElementById("laberintoCanvas");
+        const ctx = canvas.getContext("2d"); 
+
+        // Define el tamaño de la cuadrícula del laberinto
+        const gridSize = 40; // Tamaño de celda: 40x40 px
+        const rows = canvas.height / gridSize;
+        const cols = canvas.width / gridSize;
+
+        // Carga las imágenes de las paredes
+        const wallImage = new Image();
+        wallImage.src = "sprites/wall.png";
+
+        const floorImage = new Image();
+        floorImage.src = "sprites/floor.png";
+        
+        const wallImage2 = new Image();
+        wallImage2.src = "sprites/wall2.png";
+
+        // Jugador
+        const playerImage = new Image();
+        playerImage.src = "sprites/player.png";
+
+        // Objetos recolectables
+        const object1 = new Image();
+        object1.src = "sprites/itemSword.png";
+
+        const object2 = new Image();
+        object2.src = "sprites/itemShield.png";
+
+        const object3 = new Image();
+        object3.src = "sprites/chest.png";
+
+        const object4 = new Image();
+        object4.src = "sprites/chest.png";
+
+        const object5 = new Image();
+        object5.src = "sprites/chest.png";
+
+        const object6 = new Image();
+        object6.src = "sprites/chest.png";
+
+        // Salida
+        const exit = new Image();
+        exit.src = "sprites/exit.png";
+
+        let gameComplete = false;
+
+
+
+        // Laberinto
+        const laberinto = [
+            [1, 1, 1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,1 ,1 ,0 ,0 ,1 ,0 ,1 ,0 ,1 ,1 ,1 ,1 ,0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1],
+            [1, 1, 0 ,0 ,0 ,0 ,0 ,0 ,1 ,0 ,1 ,1 ,1 ,1 ,0 ,1 ,1 ,1 ,1 ,1 ,0 ,7 ,0 ,1 ,1 ,0 ,1 ,1 ,1 ,1 ,0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1],
+            [1, 0, 0 ,1 ,1 ,1 ,1 ,0 ,1 ,0 ,0 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,1 ,1 ,0 ,0 ,0 ,1 ,1 ,0 ,0 ,1 ,0 ,0 ,1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1],
+            [1, 0, 1 ,1 ,0 ,1 ,1 ,0 ,1 ,1 ,1 ,0 ,1 ,1 ,0 ,1 ,1 ,0 ,1 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1],
+            [1, 0, 0 ,0 ,0 ,0 ,1 ,0 ,1 ,1 ,1 ,0 ,0 ,1 ,0 ,1 ,0 ,0 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,1 ,0 ,1 ,1 ,1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1],
+            [1, 1, 0 ,1 ,1 ,0 ,1 ,0 ,1 ,1 ,1 ,1 ,0 ,1 ,0 ,1 ,0 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,1 ,0 ,0 ,0 ,0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1],
+            [1, 1, 0 ,0 ,1 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,1 ,1 ,0 ,0 ,1 ,1 ,1 ,1 ,0 ,0 ,0 ,0 ,1 ,1 ,1 ,1 ,1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1],
+            [1, 1, 1 ,0 ,1 ,0 ,1 ,0 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,1 ,1 ,0 ,0 ,0 ,0 ,1 ,0 ,1 ,1 ,0 ,1 ,0 ,0 ,0 ,0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1],
+            [1, 1, 1 ,0 ,1 ,0 ,1 ,0 ,1 ,1 ,1 ,0 ,0 ,0 ,0 ,0 ,6 ,1 ,1 ,1 ,0 ,0 ,0 ,1 ,1 ,0 ,1 ,0 ,1 ,1 ,0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1 ,0 ,0 ,1 ,1 ,0 ,1 ,1 ,1 ,0 ,1 ,1 ,0 ,1 ,1 ,1 ,1 ,1 ,0 ,1 ,1 ,1 ,1 ,0 ,1 ,0 ,0 ,1 ,0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1],
+            [1, 1, 1 ,1 ,0 ,1 ,0 ,0 ,0 ,0 ,1 ,0 ,1 ,1 ,1 ,0 ,0 ,0 ,1 ,1 ,0 ,1 ,1 ,0 ,1 ,0 ,1 ,1 ,0 ,1 ,0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1],
+            [1, 0, 0 ,0 ,0 ,1 ,0 ,0 ,1 ,0 ,1 ,0 ,1 ,0 ,0 ,0 ,1 ,0 ,0 ,0 ,0 ,1 ,1 ,0 ,1 ,0 ,0 ,0 ,0 ,1 ,0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1],
+            [1, 1, 0 ,1 ,1 ,1 ,0 ,1 ,1 ,0 ,1 ,0 ,0 ,0 ,1 ,0 ,1 ,1 ,0 ,1 ,0 ,0 ,0 ,0 ,1 ,0 ,1 ,1 ,1 ,1 ,1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1],
+            [1, 1, 0 ,1 ,0 ,0 ,0 ,1 ,1 ,0 ,1 ,1 ,1 ,1 ,0 ,0 ,1 ,0 ,0 ,0 ,1 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 4, 1],
+            [1, 1, 0 ,1 ,0 ,1 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,1 ,1 ,0 ,1 ,1 ,1 ,1 ,1 ,1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1],
+            [1, 0, 0 ,0 ,0 ,1 ,0 ,1 ,0 ,1 ,1 ,1 ,1 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,1 ,0 ,1 ,1 ,1 ,1 ,1 ,1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1],
+            [1, 0, 1 ,1 ,0 ,1 ,0 ,1 ,0 ,1 ,1 ,1 ,1 ,1 ,0 ,1 ,1 ,1 ,0 ,1 ,1 ,0 ,1 ,1 ,0 ,1 ,1 ,1 ,1 ,1 ,1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1],
+            [1, 0, 1 ,0 ,0 ,1 ,0 ,1 ,0 ,0 ,1 ,1 ,0 ,0 ,0 ,0 ,1 ,1 ,0 ,1 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,1 ,1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1],
+            [1, 1, 0 ,0 ,1 ,1 ,0 ,1 ,1 ,0 ,0 ,1 ,0 ,1 ,0 ,1 ,0 ,1 ,0 ,1 ,1 ,1 ,1 ,1 ,0 ,1 ,1 ,0 ,0 ,0 ,0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1],
+            [1, 2, 0 ,1 ,1 ,1 ,0 ,0 ,0 ,1 ,0 ,0 ,0 ,1 ,0 ,1 ,1 ,0 ,0 ,1 ,1 ,1 ,1 ,0 ,0 ,0 ,5 ,1 ,1 ,1 ,0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1],
+            [1, 1, 1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        ];
+
+        // Posición inicial del jugador
+        let playerX = 1;
+        let playerY = 1;
+
+
+        // Dibuja el laberinto
+        function drawLaberinto() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    const tileX = j * gridSize;
+                    const tileY = i * gridSize;
+
+                    if (laberinto[i][j] === 1) {
+                        ctx.drawImage(wallImage, tileX, tileY, gridSize, gridSize);
+                    } else if (laberinto[i][j] === 2) { // Verifica si es un objeto recolectable
+                        ctx.drawImage(object1, tileX, tileY, gridSize, gridSize);
+                    } else if (laberinto[i][j] === 3) { // Verifica si es un objeto recolectable
+                        ctx.drawImage(object2, tileX, tileY, gridSize, gridSize);
+                    } else if (laberinto[i][j] === 4) { // Verifica si es un objeto recolectable
+                        ctx.drawImage(object3, tileX, tileY, gridSize, gridSize);
+                    } else if (laberinto[i][j] === 5) { // Verifica si es un objeto recolectable
+                        ctx.drawImage(object4, tileX, tileY, gridSize, gridSize);
+                    } else if (laberinto[i][j] === 6) { // Verifica si es un objeto recolectable
+                        ctx.drawImage(object5, tileX, tileY, gridSize, gridSize);
+                    } else if (laberinto[i][j] === 7) { // Verifica si es un objeto recolectable
+                        ctx.drawImage(exit, tileX, tileY, gridSize, gridSize);
+                    } else {
+                        ctx.drawImage(floorImage, tileX, tileY, gridSize, gridSize);
+                    }
+                }
+            }
+
+            // Dibuja al jugador
+            ctx.drawImage(playerImage, playerX * gridSize, playerY * gridSize, gridSize, gridSize);
+        }
+
+        // Verifica si una posición está bloqueada por una pared
+        function isBlocked(x, y) {
+            return laberinto[y][x] === 1;
+        }
+
+        // Variables para el movimiento suave
+        let moving = false;
+        let targetX = playerX * gridSize;
+        let targetY = playerY * gridSize;
+        const movementSpeed = 4; // Ajusta la velocidad de movimiento
+
+        // Función para manejar el movimiento suave
+        function moveSmoothly() {
+            const dx = targetX - playerX * gridSize;
+            const dy = targetY - playerY * gridSize;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance > movementSpeed) {
+                const angle = Math.atan2(dy, dx);
+                const moveX = Math.cos(angle) * movementSpeed;
+                const moveY = Math.sin(angle) * movementSpeed;
+                playerX += moveX / gridSize;
+                playerY += moveY / gridSize;
+                drawLaberinto();
+                requestAnimationFrame(moveSmoothly);
+            } else {
+                playerX = targetX / gridSize;
+                playerY = targetY / gridSize;
+                moving = false;
+                drawLaberinto();
+            }
+        }
+
+        // Maneja el movimiento del jugador
+        let collectedObjects = 0;
+        const objectsRequiredToOpenDoor = 5; // Ajusta según tus necesidades.
+        let score = 0; // Variable para llevar un registro del puntaje.
+
+        function movePlayer(dx, dy) {
+            const newX = playerX + dx;
+            const newY = playerY + dy;
+
+            if (!isBlocked(newX, newY) && !moving) {
+                targetX = newX * gridSize;
+                targetY = newY * gridSize;
+                moving = true;
+                moveSmoothly();
+
+                // Verificar si el jugador ha recolectado un objeto
+                if (laberinto[newY][newX] >= 2 && laberinto[newY][newX] <= 6) {
+                    collectedObjects++;
+                    laberinto[newY][newX] = 0; // Elimina el objeto del laberinto.
+
+                    // Reproduce el sonido cuando se recolecta un objeto
+                    const collectSound = document.getElementById("collectSound");
+                    collectSound.currentTime = 0; // Reinicia la reproducción si ya está sonando
+                    collectSound.play();
+
+                    // Incrementa el puntaje por recolectar un objeto
+                    score += 50;
+
+                    // Actualiza el marcador de objetos recolectados y el puntaje en la pantalla
+                    document.getElementById("collectedObjects").textContent = `Objetos recolectados: ${collectedObjects}`;
+                    document.getElementById("score").textContent = `Puntaje: ${score}`;
+                }
+
+
+                // Verificar si el jugador ha recolectado un objeto
+                if (laberinto[newY][newX] === 2) {
+                    collectedObjects++;
+                    laberinto[newY][newX] = 0; // Elimina el objeto del laberinto.
+                } else if(laberinto[newY][newX] === 3){
+                    collectedObjects++;
+                    laberinto[newY][newX] = 0; // Elimina el objeto del laberinto.
+                } else if(laberinto[newY][newX] === 4){
+                    collectedObjects++;
+                    laberinto[newY][newX] = 0; // Elimina el objeto del laberinto.
+                } else if(laberinto[newY][newX] === 5){
+                    collectedObjects++;
+                    laberinto[newY][newX] = 0; // Elimina el objeto del laberinto.
+                } else if(laberinto[newY][newX] === 6){
+                    collectedObjects++;
+                    laberinto[newY][newX] = 0; // Elimina el objeto del laberinto.
+                }
+
+                // Verificar si se han recolectado suficientes objetos para abrir la puerta
+                if (collectedObjects >= objectsRequiredToOpenDoor) {
+                    // Habilita la salida
+                    for (let i = 0; i < rows; i++) {
+                        for (let j = 0; j < cols; j++) {
+                            if (laberinto[i][j] === 7) {
+                                laberinto[i][j] = 7;
+                                break;
+                            }
+                        }
+                    }
+                    // Verificar si el jugador está en la casilla de salida y ha recolectado todos los objetos
+                    if (laberinto[newY][newX] === 7 && collectedObjects === objectsRequiredToOpenDoor) {
+                        gameComplete = true; // El juego está completo
+                    }
+                }
+
+                drawLaberinto();
+
+                // Función para mostrar la pantalla de juego completado
+                function showGameOverScreen() {
+                    const gameOverScreen = document.getElementById("gameOverScreen");
+                    gameOverScreen.style.display = "flex";
+                }
+                if (gameComplete && laberinto[newY][newX] === 0) {
+                    showGameOverScreen(); 
+                }
+
+            }
+        }
+
+
+
+        // Escucha eventos de teclado para mover al jugador
+        document.addEventListener("keydown", (event) => {
+            switch (event.key) {
+                case "ArrowUp":
+                    movePlayer(0, -1);
+                    break;
+                case "ArrowDown":
+                    movePlayer(0, 1);
+                    break;
+                case "ArrowLeft":
+                    movePlayer(-1, 0);
+                    break;
+                case "ArrowRight":
+                    movePlayer(1, 0);
+                    break;
+            }
+        });
+
+        // Verifica si todos los objetos recolectables han sido recolectados
+        function checkIfAllCollected() {
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    if (laberinto[i][j] === 2) {
+                        return false;
+                    }
+                }
+            }
+            return true; // Todos los objetos han sido recolectados
+        }
+
+        // Verifica todos los objetos y puede terminar el juego
+        if (checkIfAllCollected()) {
+            exitOpen = true;
+        }
+
+
+        // Inicializa el juego
+        function init() {
+            drawLaberinto();
+            // Inicializa el marcador de objetos recolectados y el puntaje
+            document.getElementById("collectedObjects").textContent = `Objetos recolectados: 0`;
+            document.getElementById("score").textContent = `Puntaje: 0`;
+
+            // Inicia la música de fondo
+            const backgroundMusic = document.getElementById("backgroundMusic");
+            backgroundMusic.play();
+        }
+
+        // Llama a la función de inicialización cuando la página se carga completamente
+        window.onload = init;
+    </script>
+</body></center>
+</html>
